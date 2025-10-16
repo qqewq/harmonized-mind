@@ -76,8 +76,7 @@ export const InputForm = ({ onAnalyze, isLoading }: InputFormProps) => {
           {DOMAINS.map((domain) => (
             <div
               key={domain}
-              className="flex items-center space-x-2 p-3 rounded-lg bg-card border border-border hover:border-primary transition-colors cursor-pointer"
-              onClick={() => handleDomainToggle(domain)}
+              className="flex items-center space-x-2 p-3 rounded-lg bg-card border border-border hover:border-primary transition-colors"
             >
               <Checkbox
                 id={domain}
