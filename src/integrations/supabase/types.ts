@@ -14,13 +14,98 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      analyses: {
+        Row: {
+          constraints: string | null
+          created_at: string
+          domains: string[]
+          goal: string
+          id: string
+          recommendation: string
+          stress_test_gamma_inv: number | null
+          stress_test_status: string | null
+          task: string
+        }
+        Insert: {
+          constraints?: string | null
+          created_at?: string
+          domains: string[]
+          goal: string
+          id?: string
+          recommendation: string
+          stress_test_gamma_inv?: number | null
+          stress_test_status?: string | null
+          task: string
+        }
+        Update: {
+          constraints?: string | null
+          created_at?: string
+          domains?: string[]
+          goal?: string
+          id?: string
+          recommendation?: string
+          stress_test_gamma_inv?: number | null
+          stress_test_status?: string | null
+          task?: string
+        }
+        Relationships: []
+      }
+      hypotheses: {
+        Row: {
+          analysis_id: string
+          created_at: string
+          description: string
+          gamma: number
+          id: string
+          p_total: number
+          rank: number
+          resonance_point: number
+          status: string
+          tags: string[] | null
+        }
+        Insert: {
+          analysis_id: string
+          created_at?: string
+          description: string
+          gamma: number
+          id?: string
+          p_total: number
+          rank: number
+          resonance_point: number
+          status: string
+          tags?: string[] | null
+        }
+        Update: {
+          analysis_id?: string
+          created_at?: string
+          description?: string
+          gamma?: number
+          id?: string
+          p_total?: number
+          rank?: number
+          resonance_point?: number
+          status?: string
+          tags?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hypotheses_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "analyses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      generate_hypothesis_tags: {
+        Args: { domains: string[]; gamma: number; status: string }
+        Returns: string[]
+      }
     }
     Enums: {
       [_ in never]: never
