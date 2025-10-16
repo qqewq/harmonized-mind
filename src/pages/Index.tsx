@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { InputForm } from "@/components/InputForm";
 import { ResultsPanel } from "@/components/ResultsPanel";
+import { HistoryPanel } from "@/components/HistoryPanel";
 import { Brain, GitBranch } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface AnalysisData {
   task: string;
@@ -14,69 +17,190 @@ interface AnalysisData {
 const Index = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState("new");
 
-  // Mock function to simulate ГРА analysis
+  // Load analysis from history
+  const loadAnalysis = async (analysisId: string) => {
+    try {
+      // Load analysis data
+      const { data: analysis, error: analysisError } = await supabase
+        .from('analyses')
+        .select('*')
+        .eq('id', analysisId)
+        .single();
+
+      if (analysisError) throw analysisError;
+
+      // Load hypotheses for this analysis
+      const { data: hypotheses, error: hypothesesError } = await supabase
+        .from('hypotheses')
+        .select('*')
+        .eq('analysis_id', analysisId)
+        .order('rank');
+
+      if (hypothesesError) throw hypothesesError;
+
+      // Format results for display with additional data for visualization
+      const formattedResults = {
+        hypotheses: hypotheses.map((h: any) => ({
+          id: h.rank,
+          description: h.description,
+          pTotal: parseFloat(h.p_total),
+          gamma: parseFloat(h.gamma),
+          resonancePoint: parseFloat(h.resonance_point),
+          status: h.status
+        })),
+        recommendation: analysis.recommendation,
+        stressTest: {
+          gammaInv: analysis.stress_test_gamma_inv,
+          status: analysis.stress_test_status
+        },
+        domains: analysis.domains,
+        task: analysis.task,
+        goal: analysis.goal
+      };
+
+      setResults(formattedResults);
+      setActiveTab("new"); // Switch to results view
+      toast.success("Анализ загружен из истории");
+    } catch (error) {
+      console.error('Error loading analysis:', error);
+      toast.error("Ошибка загрузки анализа");
+    }
+  };
+
+  // Function to perform ГРА analysis and save to database
   const performAnalysis = async (data: AnalysisData) => {
     setIsAnalyzing(true);
     setResults(null);
 
-    // Simulate processing time
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    try {
+      // Simulate processing time
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
-    // Mock results
-    const mockResults = {
-      hypotheses: [
+      // Mock results (в реальной системе здесь будет ГРА алгоритм)
+      const hypothesesData = [
         {
-          id: 1,
           description: `Оптимальное решение для "${data.task}" через интеграцию ${data.domains.slice(0, 2).join(" и ")}`,
           pTotal: 0.892456,
           gamma: 2.3456,
           resonancePoint: 1.2345,
-          status: "optimal" as const
+          status: "optimal" as const,
+          rank: 1
         },
         {
-          id: 2,
           description: `Альтернативный подход с акцентом на ${data.domains[0]} и минимальными ограничениями`,
           pTotal: 0.856123,
           gamma: 1.8901,
           resonancePoint: 1.1234,
-          status: "optimal" as const
+          status: "optimal" as const,
+          rank: 2
         },
         {
-          id: 3,
           description: `Комбинированная стратегия с учетом всех доменов: ${data.domains.join(", ")}`,
           pTotal: 0.834567,
           gamma: 1.5678,
           resonancePoint: 1.0987,
-          status: "suboptimal" as const
+          status: "suboptimal" as const,
+          rank: 3
         },
         {
-          id: 4,
           description: `Инновационный метод через резонансный анализ ${data.domains[data.domains.length - 1]}`,
           pTotal: 0.798234,
           gamma: 0.9876,
           resonancePoint: 0.9456,
-          status: "suboptimal" as const
+          status: "suboptimal" as const,
+          rank: 4
         },
         {
-          id: 5,
           description: `Консервативный подход с фокусом на безопасность и этические аспекты`,
           pTotal: 0.756789,
           gamma: 0.3456,
           resonancePoint: 0.8123,
-          status: "rejected" as const
+          status: "rejected" as const,
+          rank: 5
         }
-      ],
-      recommendation: `На основе резонансного анализа рекомендуется гипотеза #1 с максимальным Γ=2.3456. Данное решение оптимально сочетает ${data.domains[0]} и ${data.domains[1] || data.domains[0]}, достигая цели: "${data.goal}". Решение проходит стресс-тест и показывает устойчивость к инверсии.`,
-      stressTest: {
+      ];
+
+      const recommendation = `На основе резонансного анализа рекомендуется гипотеза #1 с максимальным Γ=2.3456. Данное решение оптимально сочетает ${data.domains[0]} и ${data.domains[1] || data.domains[0]}, достигая цели: "${data.goal}". Решение проходит стресс-тест и показывает устойчивость к инверсии.`;
+      
+      const stressTest = {
         gammaInv: -2.3456,
         status: "Система устойчива"
-      }
-    };
+      };
 
-    setResults(mockResults);
-    setIsAnalyzing(false);
-    toast.success("Анализ завершен успешно");
+      // Save analysis to database
+      const { data: analysisRecord, error: analysisError } = await supabase
+        .from('analyses')
+        .insert({
+          task: data.task,
+          domains: data.domains,
+          goal: data.goal,
+          constraints: data.constraints,
+          recommendation: recommendation,
+          stress_test_gamma_inv: stressTest.gammaInv,
+          stress_test_status: stressTest.status
+        })
+        .select()
+        .single();
+
+      if (analysisError) {
+        console.error('Error saving analysis:', analysisError);
+        toast.error("Ошибка сохранения анализа");
+        return;
+      }
+
+      // Save hypotheses to database with auto-generated tags
+      const hypothesesWithTags = await Promise.all(
+        hypothesesData.map(async (hyp) => {
+          // Generate tags using database function
+          const { data: tagsData } = await supabase.rpc('generate_hypothesis_tags', {
+            domains: data.domains,
+            status: hyp.status,
+            gamma: hyp.gamma
+          });
+
+          return {
+            analysis_id: analysisRecord.id,
+            description: hyp.description,
+            p_total: hyp.pTotal,
+            gamma: hyp.gamma,
+            resonance_point: hyp.resonancePoint,
+            status: hyp.status,
+            rank: hyp.rank,
+            tags: tagsData || []
+          };
+        })
+      );
+
+      const { error: hypothesesError } = await supabase
+        .from('hypotheses')
+        .insert(hypothesesWithTags);
+
+      if (hypothesesError) {
+        console.error('Error saving hypotheses:', hypothesesError);
+        toast.error("Ошибка сохранения гипотез");
+        return;
+      }
+
+      // Set results for display with domains for visualization
+      const mockResults = {
+        hypotheses: hypothesesData.map((h, i) => ({ ...h, id: i + 1 })),
+        recommendation,
+        stressTest,
+        domains: data.domains,
+        task: data.task,
+        goal: data.goal
+      };
+
+      setResults(mockResults);
+      toast.success("Анализ завершен и сохранен в историю");
+    } catch (error) {
+      console.error('Error in analysis:', error);
+      toast.error("Ошибка при выполнении анализа");
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   return (
@@ -116,21 +240,38 @@ const Index = () => {
             </p>
           </div>
 
-          {/* Input Form */}
-          <div className="bg-card border border-border rounded-xl p-6 shadow-xl">
-            <InputForm onAnalyze={performAnalysis} isLoading={isAnalyzing} />
-          </div>
+          {/* Tabs for New Analysis and History */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsTrigger value="new">Новый анализ</TabsTrigger>
+              <TabsTrigger value="history">История</TabsTrigger>
+            </TabsList>
 
-          {/* Results Panel */}
-          {results && (
-            <div className="mt-8">
-              <ResultsPanel
-                hypotheses={results.hypotheses}
-                recommendation={results.recommendation}
-                stressTest={results.stressTest}
-              />
-            </div>
-          )}
+            <TabsContent value="new" className="space-y-8">
+              {/* Input Form */}
+              <div className="bg-card border border-border rounded-xl p-6 shadow-xl">
+                <InputForm onAnalyze={performAnalysis} isLoading={isAnalyzing} />
+              </div>
+
+              {/* Results Panel */}
+              {results && (
+                <div className="mt-8">
+                  <ResultsPanel
+                    hypotheses={results.hypotheses}
+                    recommendation={results.recommendation}
+                    stressTest={results.stressTest}
+                    domains={results.domains}
+                    task={results.task}
+                    goal={results.goal}
+                  />
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="history">
+              <HistoryPanel onLoadAnalysis={loadAnalysis} />
+            </TabsContent>
+          </Tabs>
         </div>
       </main>
 
