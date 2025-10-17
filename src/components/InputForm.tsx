@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Brain, Sparkles } from "lucide-react";
+import { z } from "zod";
+import { toast } from "sonner";
 
 interface InputFormProps {
   onAnalyze: (data: {
@@ -27,6 +29,29 @@ const DOMAINS = [
   "Инженерия"
 ];
 
+// Zod validation schema for input validation
+const analysisSchema = z.object({
+  task: z.string()
+    .min(1, { message: "Задача обязательна" })
+    .transform(val => val.trim())
+    .pipe(z.string()
+      .min(10, { message: "Задача должна содержать минимум 10 символов" })
+      .max(2000, { message: "Задача должна содержать максимум 2000 символов" })),
+  domains: z.array(z.string())
+    .min(1, { message: "Выберите хотя бы один домен" })
+    .max(8, { message: "Максимум 8 доменов" }),
+  goal: z.string()
+    .min(1, { message: "Цель обязательна" })
+    .transform(val => val.trim())
+    .pipe(z.string()
+      .min(5, { message: "Цель должна содержать минимум 5 символов" })
+      .max(500, { message: "Цель должна содержать максимум 500 символов" })),
+  constraints: z.string()
+    .transform(val => val.trim())
+    .pipe(z.string()
+      .max(1000, { message: "Ограничения должны содержать максимум 1000 символов" }))
+});
+
 export const InputForm = ({ onAnalyze, isLoading }: InputFormProps) => {
   const [task, setTask] = useState("");
   const [selectedDomains, setSelectedDomains] = useState<string[]>([]);
@@ -43,12 +68,28 @@ export const InputForm = ({ onAnalyze, isLoading }: InputFormProps) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onAnalyze({
-      task,
-      domains: selectedDomains,
-      goal,
-      constraints
-    });
+    
+    try {
+      const validatedData = analysisSchema.parse({
+        task,
+        domains: selectedDomains,
+        goal,
+        constraints
+      }) as {
+        task: string;
+        domains: string[];
+        goal: string;
+        constraints: string;
+      };
+      
+      onAnalyze(validatedData);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        error.errors.forEach(err => {
+          toast.error(err.message);
+        });
+      }
+    }
   };
 
   const isFormValid = task && selectedDomains.length > 0 && goal;
