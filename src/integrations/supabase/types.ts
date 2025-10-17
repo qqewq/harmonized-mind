@@ -25,6 +25,7 @@ export type Database = {
           stress_test_gamma_inv: number | null
           stress_test_status: string | null
           task: string
+          user_id: string
         }
         Insert: {
           constraints?: string | null
@@ -36,6 +37,7 @@ export type Database = {
           stress_test_gamma_inv?: number | null
           stress_test_status?: string | null
           task: string
+          user_id: string
         }
         Update: {
           constraints?: string | null
@@ -47,6 +49,7 @@ export type Database = {
           stress_test_gamma_inv?: number | null
           stress_test_status?: string | null
           task?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -62,6 +65,7 @@ export type Database = {
           resonance_point: number
           status: string
           tags: string[] | null
+          user_id: string
         }
         Insert: {
           analysis_id: string
@@ -74,6 +78,7 @@ export type Database = {
           resonance_point: number
           status: string
           tags?: string[] | null
+          user_id: string
         }
         Update: {
           analysis_id?: string
@@ -86,6 +91,7 @@ export type Database = {
           resonance_point?: number
           status?: string
           tags?: string[] | null
+          user_id?: string
         }
         Relationships: [
           {
