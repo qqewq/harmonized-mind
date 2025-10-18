@@ -1,14 +1,11 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { InputForm } from "@/components/InputForm";
 import { ResultsPanel } from "@/components/ResultsPanel";
 import { HistoryPanel } from "@/components/HistoryPanel";
-import { Brain, GitBranch, LogOut, User } from "lucide-react";
+import { Brain, GitBranch } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import type { User as SupabaseUser } from "@supabase/supabase-js";
 
 interface AnalysisData {
   task: string;
@@ -18,39 +15,9 @@ interface AnalysisData {
 }
 
 const Index = () => {
-  const navigate = useNavigate();
-  const [user, setUser] = useState<SupabaseUser | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("new");
-
-  useEffect(() => {
-    // Check authentication status
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        navigate("/auth");
-      } else {
-        setUser(session.user);
-      }
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!session) {
-        navigate("/auth");
-      } else {
-        setUser(session.user);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate]);
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    toast.success("Logged out successfully");
-    navigate("/auth");
-  };
 
   // Load analysis from history
   const loadAnalysis = async (analysisId: string) => {
@@ -104,12 +71,6 @@ const Index = () => {
 
   // Function to perform ГРА analysis and save to database
   const performAnalysis = async (data: AnalysisData) => {
-    if (!user) {
-      toast.error("You must be logged in to perform analysis");
-      navigate("/auth");
-      return;
-    }
-
     setIsAnalyzing(true);
     setResults(null);
 
@@ -168,7 +129,7 @@ const Index = () => {
         status: "Система устойчива"
       };
 
-      // Save analysis to database with user_id
+      // Save analysis to database
       const { data: analysisRecord, error: analysisError } = await supabase
         .from('analyses')
         .insert({
@@ -178,8 +139,7 @@ const Index = () => {
           constraints: data.constraints,
           recommendation: recommendation,
           stress_test_gamma_inv: stressTest.gammaInv,
-          stress_test_status: stressTest.status,
-          user_id: user.id
+          stress_test_status: stressTest.status
         })
         .select()
         .single();
@@ -190,7 +150,7 @@ const Index = () => {
         return;
       }
 
-      // Save hypotheses to database with auto-generated tags and user_id
+      // Save hypotheses to database with auto-generated tags
       const hypothesesWithTags = await Promise.all(
         hypothesesData.map(async (hyp) => {
           // Generate tags using database function
@@ -208,8 +168,7 @@ const Index = () => {
             resonance_point: hyp.resonancePoint,
             status: hyp.status,
             rank: hyp.rank,
-            tags: tagsData || [],
-            user_id: user.id
+            tags: tagsData || []
           };
         })
       );
@@ -244,10 +203,6 @@ const Index = () => {
     }
   };
 
-  if (!user) {
-    return null; // Will redirect to auth
-  }
-
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -264,19 +219,9 @@ const Index = () => {
                 <p className="text-sm text-muted-foreground">Гибридный Резонансный Алгоритм</p>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <User className="w-4 h-4" />
-                <span className="truncate max-w-[200px]">{user.email}</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <GitBranch className="w-4 h-4" />
-                <span className="font-mono">v1.0</span>
-              </div>
-              <Button variant="outline" size="sm" onClick={handleLogout}>
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
-              </Button>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <GitBranch className="w-4 h-4" />
+              <span className="font-mono">v1.0</span>
             </div>
           </div>
         </div>
