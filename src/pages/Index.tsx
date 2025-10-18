@@ -139,7 +139,8 @@ const Index = () => {
           constraints: data.constraints,
           recommendation: recommendation,
           stress_test_gamma_inv: stressTest.gammaInv,
-          stress_test_status: stressTest.status
+          stress_test_status: stressTest.status,
+          user_id: null
         })
         .select()
         .single();
@@ -168,7 +169,8 @@ const Index = () => {
             resonance_point: hyp.resonancePoint,
             status: hyp.status,
             rank: hyp.rank,
-            tags: tagsData || []
+            tags: tagsData || [],
+            user_id: null
           };
         })
       );
