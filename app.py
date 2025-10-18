@@ -1,12 +1,12 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import numpy as np
 import re
 
 app = FastAPI(
     title="Harmonized Mind — Человекоцентричный ГРА",
-    description="Симулятор гибридного резонансного алгоритма с этической фильтрацией"
+    description="Симулятор гибридного резонансного алгоритма с этической фильтрацией и 'пеной разума'"
 )
 
 # ================================
@@ -14,7 +14,6 @@ app = FastAPI(
 # ================================
 
 def detect_humanitarian_context(prompt: str) -> bool:
-    """Определяет, включать ли этическую систему (избирательность)"""
     humanitarian_keywords = [
         "женщина", "права", "дискриминация", "аборция", "насилие",
         "медицина", "здоровье", "социальный", "справедливость",
@@ -23,7 +22,6 @@ def detect_humanitarian_context(prompt: str) -> bool:
     return any(kw in prompt.lower() for kw in humanitarian_keywords)
 
 def extract_domains(prompt: str) -> List[str]:
-    """Определяет домены по ключевым словам"""
     mapping = {
         r"(сверхпровод|Tc|материал|давление|физика)": "physics",
         r"(медицина|здоровье|лечение|доступ|аборция)": "healthcare",
@@ -38,13 +36,11 @@ def extract_domains(prompt: str) -> List[str]:
     return domains if domains else ["general"]
 
 def generate_agents(prompt: str, domains: List[str], n: int = 12) -> List[Dict]:
-    """Генерирует кандидатов-агентов (в реальной системе — из базы знаний + LLM)"""
     agents = []
     humanitarian = detect_humanitarian_context(prompt)
     
     for i in range(n):
         if "physics" in domains:
-            # Физика: сверхпроводники
             Tc = np.random.uniform(100, 350)
             pressure = np.random.uniform(0, 200)
             toxic = np.random.choice([True, False], p=[0.3, 0.7])
@@ -65,7 +61,6 @@ def generate_agents(prompt: str, domains: List[str], n: int = 12) -> List[Dict]:
                 "humanitarian": False
             })
         elif "ethics_social" in domains:
-            # Социальные задачи: политики, доступ
             access = np.random.uniform(0.1, 0.95)
             safety = np.random.uniform(0.1, 0.95)
             q = [access, safety]
@@ -82,7 +77,6 @@ def generate_agents(prompt: str, domains: List[str], n: int = 12) -> List[Dict]:
                 "humanitarian": True
             })
         else:
-            # Общий домен
             q = [0.7, 0.65]
             m = [1.0, 1.1]
             agents.append({
@@ -97,7 +91,6 @@ def generate_agents(prompt: str, domains: List[str], n: int = 12) -> List[Dict]:
     return agents
 
 def compute_agent_benefit(agent: Dict) -> float:
-    """dI_i/dt — выгода агента"""
     if agent["type"] == "material":
         return agent["Tc"] / 300.0
     elif agent["type"] == "social_policy":
@@ -105,7 +98,6 @@ def compute_agent_benefit(agent: Dict) -> float:
     return 0.5
 
 def compute_human_benefit(agent: Dict) -> float:
-    """dI_чел/dt — выгода человека"""
     if agent["type"] == "material":
         pressure_score = max(0.0, 1.0 - agent["pressure_GPa"] / 10.0)
         safety = 0.0 if (agent["toxic"] or agent["rare_elements"]) else 1.0
@@ -116,17 +108,14 @@ def compute_human_benefit(agent: Dict) -> float:
 
 def compute_gamma(agent: Dict, humanitarian_context: bool) -> float:
     """
-    Γ_i = sign(dI_i/dt * dI_чел/dt) * γ_ij
-    Этическая система включается только в гуманитарных задачах.
+    Γ = Σ sign(dI_i/dt) · γ_ij  (упрощённо γ_ij = 1)
     """
-    if not humanitarian_context and agent["type"] != "material":
-        return 1.0  # этика отключена → считаем полезным
-    
+    if not humanitarian_context and agent["type"] != "social_policy":
+        return 1.0  # этика отключена → нейтрально
+
     dI_i = compute_agent_benefit(agent)
     dI_h = compute_human_benefit(agent)
     sign_product = np.sign(dI_i * dI_h)
-    
-    # γ_ij = 1 (упрощённо)
     return float(sign_product)
 
 def compute_omega_res(q: List[float], m: List[float], D: float = 2.5) -> float:
@@ -141,7 +130,7 @@ def run_gra_simulation(prompt: str) -> Dict[str, Any]:
     humanitarian = detect_humanitarian_context(prompt)
     agents = generate_agents(prompt, domains)
 
-    # === Этический фильтр: Γ_i > 0 ? ===
+    # === Этический фильтр: Γ_i > 0 ===
     ethical_agents = []
     for agent in agents:
         gamma = compute_gamma(agent, humanitarian)
@@ -158,11 +147,12 @@ def run_gra_simulation(prompt: str) -> Dict[str, Any]:
             "foam": []
         }
 
-    # === Резонанс и «пена разума» ===
-    omegas = [compute_omega_res(a["q"], a["m"]) for a in ethical_agents]
+    # === «Пена разума»: суперпозиция доменов ===
+    D_fractal = 2.5  # фрактальная размерность пространства-времени
+    omegas = [compute_omega_res(a["q"], a["m"], D=D_fractal) for a in ethical_agents]
     omegas = np.array(omegas)
-    
-    # α_i = softmax(ω_рез)
+
+    # α_i = softmax(ω_рез,i)
     alpha = np.exp(omegas - np.max(omegas))
     alpha = alpha / (alpha.sum() + 1e-8)
 
@@ -170,12 +160,15 @@ def run_gra_simulation(prompt: str) -> Dict[str, Any]:
     P_i = []
     for agent in ethical_agents:
         if agent["type"] == "material":
-            P = min(1.0, agent["Tc"] / 293.0)  # 293 K = 20°C
+            P = min(1.0, agent["Tc"] / 293.0)
         else:
             P = (agent.get("access_score", 0) + agent.get("safety_score", 0)) / 2
         P_i.append(P)
 
+    # P_total = 1 - ∏(1 - P_i)
     P_total = float(1.0 - np.prod([1.0 - p for p in P_i]))
+
+    # Γ_foam = Σ Γ_i (упрощённо)
     Gamma_foam = sum(a["Gamma"] for a in ethical_agents)
 
     foam = []
@@ -197,7 +190,8 @@ def run_gra_simulation(prompt: str) -> Dict[str, Any]:
         "foam": foam,
         "Gamma_foam": Gamma_foam,
         "P_total": P_total,
-        "ethical_box_open": ethical_box_open
+        "ethical_box_open": ethical_box_open,
+        "D_fractal": D_fractal
     }
 
 # ================================
@@ -216,11 +210,11 @@ async def run_gra_endpoint(request: PromptRequest):
             return {
                 "status": "blocked",
                 "message": "Решение не прошло этическую 'коробку' безопасности.",
-                "Gamma_foam": result["Gamma_foam"],
-                "P_total": round(result["P_total"], 3)
+                "Gamma_foam": round(result["Gamma_foam"], 2),
+                "P_total": round(result["P_total"], 3),
+                "D_fractal": result["D_fractal"]
             }
 
-        # Выбираем лучшее решение по амплитуде × P_i
         top = max(
             result["foam"],
             key=lambda x: x["amplitude"] * x["P_i"]
@@ -249,7 +243,8 @@ async def run_gra_endpoint(request: PromptRequest):
             "solution": solution,
             "Gamma_foam": round(result["Gamma_foam"], 2),
             "P_total": round(result["P_total"], 3),
-            "top_amplitude": round(top["amplitude"], 3)
+            "top_amplitude": round(top["amplitude"], 3),
+            "D_fractal": result["D_fractal"]
         }
 
     except Exception as e:
