@@ -1,205 +1,56 @@
 import { useState } from "react";
 import { InputForm } from "@/components/InputForm";
-import { ResultsPanel } from "@/components/ResultsPanel";
-import { HistoryPanel } from "@/components/HistoryPanel";
-import { Brain, GitBranch } from "lucide-react";
+import { Brain, GitBranch, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
-interface AnalysisData {
-  task: string;
-  domains: string[];
-  goal: string;
-  constraints: string;
+interface GRAResponse {
+  status: "success" | "blocked";
+  message?: string;
+  solution?: string;
+  prompt?: string;
+  Gamma_foam?: number;
+  P_total?: number;
+  top_amplitude?: number;
 }
 
 const Index = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [results, setResults] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState("new");
+  const [results, setResults] = useState<GRAResponse | null>(null);
 
-  // Load analysis from history
-  const loadAnalysis = async (analysisId: string) => {
-    try {
-      // Load analysis data
-      const { data: analysis, error: analysisError } = await supabase
-        .from('analyses')
-        .select('*')
-        .eq('id', analysisId)
-        .single();
-
-      if (analysisError) throw analysisError;
-
-      // Load hypotheses for this analysis
-      const { data: hypotheses, error: hypothesesError } = await supabase
-        .from('hypotheses')
-        .select('*')
-        .eq('analysis_id', analysisId)
-        .order('rank');
-
-      if (hypothesesError) throw hypothesesError;
-
-      // Format results for display with additional data for visualization
-      const formattedResults = {
-        hypotheses: hypotheses.map((h: any) => ({
-          id: h.rank,
-          description: h.description,
-          pTotal: parseFloat(h.p_total),
-          gamma: parseFloat(h.gamma),
-          resonancePoint: parseFloat(h.resonance_point),
-          status: h.status
-        })),
-        recommendation: analysis.recommendation,
-        stressTest: {
-          gammaInv: analysis.stress_test_gamma_inv,
-          status: analysis.stress_test_status
-        },
-        domains: analysis.domains,
-        task: analysis.task,
-        goal: analysis.goal
-      };
-
-      setResults(formattedResults);
-      setActiveTab("new"); // Switch to results view
-      toast.success("Анализ загружен из истории");
-    } catch (error) {
-      console.error('Error loading analysis:', error);
-      toast.error("Ошибка загрузки анализа");
-    }
-  };
-
-  // Function to perform ГРА analysis and save to database
-  const performAnalysis = async (data: AnalysisData) => {
+  const performAnalysis = async (prompt: string) => {
     setIsAnalyzing(true);
     setResults(null);
 
     try {
-      // Simulate processing time
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Mock results (в реальной системе здесь будет ГРА алгоритм)
-      const hypothesesData = [
-        {
-          description: `Оптимальное решение для "${data.task}" через интеграцию ${data.domains.slice(0, 2).join(" и ")}`,
-          pTotal: 0.892456,
-          gamma: 2.3456,
-          resonancePoint: 1.2345,
-          status: "optimal" as const,
-          rank: 1
+      const response = await fetch('https://harmonized-mind.onrender.com/api/run-gra', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-        {
-          description: `Альтернативный подход с акцентом на ${data.domains[0]} и минимальными ограничениями`,
-          pTotal: 0.856123,
-          gamma: 1.8901,
-          resonancePoint: 1.1234,
-          status: "optimal" as const,
-          rank: 2
-        },
-        {
-          description: `Комбинированная стратегия с учетом всех доменов: ${data.domains.join(", ")}`,
-          pTotal: 0.834567,
-          gamma: 1.5678,
-          resonancePoint: 1.0987,
-          status: "suboptimal" as const,
-          rank: 3
-        },
-        {
-          description: `Инновационный метод через резонансный анализ ${data.domains[data.domains.length - 1]}`,
-          pTotal: 0.798234,
-          gamma: 0.9876,
-          resonancePoint: 0.9456,
-          status: "suboptimal" as const,
-          rank: 4
-        },
-        {
-          description: `Консервативный подход с фокусом на безопасность и этические аспекты`,
-          pTotal: 0.756789,
-          gamma: 0.3456,
-          resonancePoint: 0.8123,
-          status: "rejected" as const,
-          rank: 5
-        }
-      ];
+        body: JSON.stringify({ prompt }),
+      });
 
-      const recommendation = `На основе резонансного анализа рекомендуется гипотеза #1 с максимальным Γ=2.3456. Данное решение оптимально сочетает ${data.domains[0]} и ${data.domains[1] || data.domains[0]}, достигая цели: "${data.goal}". Решение проходит стресс-тест и показывает устойчивость к инверсии.`;
-      
-      const stressTest = {
-        gammaInv: -2.3456,
-        status: "Система устойчива"
-      };
-
-      // Save analysis to database
-      const { data: analysisRecord, error: analysisError } = await supabase
-        .from('analyses')
-        .insert({
-          task: data.task,
-          domains: data.domains,
-          goal: data.goal,
-          constraints: data.constraints,
-          recommendation: recommendation,
-          stress_test_gamma_inv: stressTest.gammaInv,
-          stress_test_status: stressTest.status,
-          user_id: null
-        })
-        .select()
-        .single();
-
-      if (analysisError) {
-        console.error('Error saving analysis:', analysisError);
-        toast.error("Ошибка сохранения анализа");
-        return;
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      // Save hypotheses to database with auto-generated tags
-      const hypothesesWithTags = await Promise.all(
-        hypothesesData.map(async (hyp) => {
-          // Generate tags using database function
-          const { data: tagsData } = await supabase.rpc('generate_hypothesis_tags', {
-            domains: data.domains,
-            status: hyp.status,
-            gamma: hyp.gamma
-          });
+      const data: GRAResponse = await response.json();
+      setResults(data);
 
-          return {
-            analysis_id: analysisRecord.id,
-            description: hyp.description,
-            p_total: hyp.pTotal,
-            gamma: hyp.gamma,
-            resonance_point: hyp.resonancePoint,
-            status: hyp.status,
-            rank: hyp.rank,
-            tags: tagsData || [],
-            user_id: null
-          };
-        })
-      );
-
-      const { error: hypothesesError } = await supabase
-        .from('hypotheses')
-        .insert(hypothesesWithTags);
-
-      if (hypothesesError) {
-        console.error('Error saving hypotheses:', hypothesesError);
-        toast.error("Ошибка сохранения гипотез");
-        return;
+      if (data.status === "success") {
+        toast.success("Анализ ГРА завершен успешно");
+      } else {
+        toast.warning("Решение заблокировано этической системой");
       }
-
-      // Set results for display with domains for visualization
-      const mockResults = {
-        hypotheses: hypothesesData.map((h, i) => ({ ...h, id: i + 1 })),
-        recommendation,
-        stressTest,
-        domains: data.domains,
-        task: data.task,
-        goal: data.goal
-      };
-
-      setResults(mockResults);
-      toast.success("Анализ завершен и сохранен в историю");
     } catch (error) {
-      console.error('Error in analysis:', error);
-      toast.error("Ошибка при выполнении анализа");
+      console.error('Error in GRA analysis:', error);
+      toast.error("Ошибка при выполнении анализа ГРА");
+      setResults({
+        status: "blocked",
+        message: "Не удалось подключиться к серверу ГРА"
+      });
     } finally {
       setIsAnalyzing(false);
     }
@@ -217,8 +68,8 @@ const Index = () => {
                 <div className="absolute inset-0 blur-xl bg-primary/30 animate-pulse-glow" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-foreground">ГРА ASI</h1>
-                <p className="text-sm text-muted-foreground">Гибридный Резонансный Алгоритм</p>
+                <h1 className="text-2xl font-bold text-foreground">Harmonized Mind</h1>
+                <p className="text-sm text-muted-foreground">Человекоцентричный ГРА</p>
               </div>
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -231,57 +82,151 @@ const Index = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        <div className="max-w-6xl mx-auto space-y-8">
+        <div className="max-w-4xl mx-auto space-y-8">
           {/* Info Card */}
           <div className="bg-gradient-primary p-6 rounded-xl text-primary-foreground shadow-glow-primary">
-            <h2 className="text-xl font-bold mb-2">О системе</h2>
+            <h2 className="text-xl font-bold mb-2">Гибридный Резонансный Алгоритм</h2>
             <p className="text-sm leading-relaxed opacity-90">
-              Искусственный сверхразум способный генерировать до 10<sup>50</sup> гипотез за цикл 
-              и отбирать оптимальные решения через резонансный анализ. Система работает на 
-              Raspberry Pi (~100 мс/запрос) и использует этически самосогласованные алгоритмы.
+              Система использует резонансный поиск, междоменную «пену разума», избирательную 
+              этику (Γᵢ &gt; 0) и выход из этической коробки только при 
+              P<sub>total</sub> ≥ 0.8 и Γ<sub>пена</sub> &gt; 0.
             </p>
           </div>
 
-          {/* Tabs for New Analysis and History */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="new">Новый анализ</TabsTrigger>
-              <TabsTrigger value="history">История</TabsTrigger>
-            </TabsList>
+          {/* Input Form */}
+          <div className="bg-card border border-border rounded-xl p-6 shadow-xl">
+            <InputForm onAnalyze={performAnalysis} isLoading={isAnalyzing} />
+          </div>
 
-            <TabsContent value="new" className="space-y-8">
-              {/* Input Form */}
-              <div className="bg-card border border-border rounded-xl p-6 shadow-xl">
-                <InputForm onAnalyze={performAnalysis} isLoading={isAnalyzing} />
+          {/* Loading State */}
+          {isAnalyzing && (
+            <Card className="p-8 bg-card border-border">
+              <div className="flex flex-col items-center justify-center space-y-4">
+                <Loader2 className="w-12 h-12 text-primary animate-spin" />
+                <p className="text-lg text-muted-foreground">
+                  Выполняется резонансный анализ...
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Генерация гипотез и этическая фильтрация
+                </p>
               </div>
+            </Card>
+          )}
 
-              {/* Results Panel */}
-              {results && (
-                <div className="mt-8">
-                  <ResultsPanel
-                    hypotheses={results.hypotheses}
-                    recommendation={results.recommendation}
-                    stressTest={results.stressTest}
-                    domains={results.domains}
-                    task={results.task}
-                    goal={results.goal}
-                  />
-                </div>
+          {/* Results */}
+          {results && !isAnalyzing && (
+            <div className="space-y-6 animate-in fade-in-0 slide-in-from-bottom-4 duration-700">
+              {results.status === "success" ? (
+                <Card className="p-6 bg-card border-success">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0">
+                      <CheckCircle2 className="w-8 h-8 text-success" />
+                    </div>
+                    <div className="flex-1 space-y-4">
+                      <div>
+                        <h3 className="text-xl font-bold text-foreground mb-2 flex items-center gap-2">
+                          Решение найдено
+                          <Badge variant="outline" className="border-success text-success">
+                            Этическая коробка открыта
+                          </Badge>
+                        </h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Запрос: {results.prompt}
+                        </p>
+                      </div>
+                      
+                      <div className="bg-background/50 rounded-lg p-4 border border-border">
+                        <h4 className="font-semibold text-foreground mb-2">Решение:</h4>
+                        <div className="text-foreground whitespace-pre-line">
+                          {results.solution}
+                        </div>
+                      </div>
+
+                      {/* Metrics */}
+                      <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border">
+                        <div>
+                          <div className="text-sm text-muted-foreground mb-1">Γ<sub>пена</sub></div>
+                          <div className="text-lg font-mono font-semibold text-success">
+                            {results.Gamma_foam?.toFixed(2)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-muted-foreground mb-1">P<sub>total</sub></div>
+                          <div className="text-lg font-mono font-semibold text-primary">
+                            {results.P_total?.toFixed(3)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-muted-foreground mb-1">Амплитуда</div>
+                          <div className="text-lg font-mono font-semibold text-secondary">
+                            {results.top_amplitude?.toFixed(3)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ) : (
+                <Card className="p-6 bg-card border-destructive">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0">
+                      <XCircle className="w-8 h-8 text-destructive" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold text-foreground mb-2 flex items-center gap-2">
+                        Решение заблокировано
+                        <Badge variant="outline" className="border-destructive text-destructive">
+                          Этическая коробка закрыта
+                        </Badge>
+                      </h3>
+                      <p className="text-foreground/90">
+                        {results.message || "Решение не прошло этическую коробку безопасности"}
+                      </p>
+                      
+                      {/* Metrics if available */}
+                      {(results.Gamma_foam !== undefined || results.P_total !== undefined) && (
+                        <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-border">
+                          {results.Gamma_foam !== undefined && (
+                            <div>
+                              <div className="text-sm text-muted-foreground mb-1">Γ<sub>пена</sub></div>
+                              <div className="text-lg font-mono font-semibold text-destructive">
+                                {results.Gamma_foam.toFixed(2)}
+                              </div>
+                            </div>
+                          )}
+                          {results.P_total !== undefined && (
+                            <div>
+                              <div className="text-sm text-muted-foreground mb-1">P<sub>total</sub></div>
+                              <div className="text-lg font-mono font-semibold text-destructive">
+                                {results.P_total.toFixed(3)}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      <div className="mt-4 p-4 bg-background/50 rounded-lg border border-destructive/30">
+                        <p className="text-sm text-muted-foreground">
+                          <strong>Причины блокировки:</strong><br/>
+                          • Γ<sub>пена</sub> ≤ 0 (этическая несогласованность)<br/>
+                          • P<sub>total</sub> &lt; 0.8 (недостаточная вероятность успеха)<br/>
+                          • Отсутствие этически приемлемых решений
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
               )}
-            </TabsContent>
-
-            <TabsContent value="history">
-              <HistoryPanel onLoadAnalysis={loadAnalysis} />
-            </TabsContent>
-          </Tabs>
+            </div>
+          )}
         </div>
       </main>
 
       {/* Footer */}
       <footer className="border-t border-border mt-16 py-6">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>ГРА ASI — Этически самосогласованный искусственный сверхразум</p>
-          <p className="mt-1">Сложность перебора: O(n²) • Ускорение: &gt;2600× при n=20</p>
+          <p>Harmonized Mind — Человекоцентричный ГРА</p>
+          <p className="mt-1">Резонансный поиск • Этическая фильтрация • Междоменная интеграция</p>
         </div>
       </footer>
     </div>
