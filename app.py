@@ -4,14 +4,13 @@ from pydantic import BaseModel
 from typing import List, Dict, Any, Literal
 import numpy as np
 import re
+from itertools import combinations
 
 app = FastAPI(
     title="Harmonized Mind — ГРА без этики",
-    description="Hybrid Resonance Algorithm (GRA) v1.0 — practical tool for non-trivial solutions across domains. "
-                "Reduces complexity from O(2^n) to O(n²) via resonance points and 'foam of mind'."
+    description="Гибридный Резонансный Алгоритм v1.0: генератор научных прорывов через резонансные точки и 'пену разума'."
 )
 
-# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -20,55 +19,40 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Языковые шаблоны
 MESSAGES = {
     "ru": {
-        "material_label": "Материал",
-        "formula_label": "Формула",
-        "type_label": "Тип",
-        "Tc_label": "Критическая температура T_c",
-        "pressure_label": "Давление",
-        "safe_label": "Безопасен",
-        "stable_label": "Стабилен при 1 атм",
-        "yes": "Да",
-        "no": "Нет",
-        "social_label": "Социальная рекомендация",
-        "healthcare_label": "Медицинская рекомендация",
-        "access_label": "Доступ",
-        "safety_label": "Безопасность",
-        "generic_label": "Решение",
-        "celsius": "°C",
-        "gpa": "ГПа",
+        "breakthrough": "Научный прорыв",
+        "theorem": "Теорема / Гипотеза",
+        "experiment": "Мысленный эксперимент",
+        "domains": "Домены",
+        "constants": "Изменённые константы",
         "novelty": "Нетривиальность",
-        "explanation": "Научное обоснование",
         "methodology": "Методология"
     },
     "en": {
-        "material_label": "Material",
-        "formula_label": "Formula",
-        "type_label": "Type",
-        "Tc_label": "Critical temperature T_c",
-        "pressure_label": "Pressure",
-        "safe_label": "Safe",
-        "stable_label": "Stable at 1 atm",
-        "yes": "Yes",
-        "no": "No",
-        "social_label": "Social policy",
-        "healthcare_label": "Healthcare policy",
-        "access_label": "Access",
-        "safety_label": "Safety",
-        "generic_label": "Solution",
-        "celsius": "°C",
-        "gpa": "GPa",
+        "breakthrough": "Scientific Breakthrough",
+        "theorem": "Theorem / Hypothesis",
+        "experiment": "Thought Experiment",
+        "domains": "Domains",
+        "constants": "Modified Constants",
         "novelty": "Novelty",
-        "explanation": "Scientific rationale",
         "methodology": "Methodology"
     }
 }
 
 NOVELTY_LEVELS = {
-    "ru": ["Низкая", "Средняя", "Высокая", "Экстремальная"],
-    "en": ["Low", "Medium", "High", "Extreme"]
+    "ru": ["Низкая", "Средняя", "Высокая", "Революционная"],
+    "en": ["Low", "Medium", "High", "Revolutionary"]
+}
+
+ALL_DOMAINS = ["physics", "healthcare", "social", "climate", "education"]
+
+# Фундаментальные константы как переменные (раздел 3.2)
+BASE_CONSTANTS = {
+    "c": 299792458.0,      # скорость света
+    "hbar": 1.0545718e-34, # приведённая постоянная Планка
+    "G": 6.67430e-11,      # гравитационная постоянная
+    "D_fractal": 2.5       # фрактальная размерность — НЕ константа!
 }
 
 def extract_domains(prompt: str) -> List[str]:
@@ -76,140 +60,128 @@ def extract_domains(prompt: str) -> List[str]:
         r"(сверхпровод|Tc|материал|давление|физика|температура|superconductor|material|physics|temperature)": "physics",
         r"(медицина|здоровье|лечение|доступ|аборция|болезнь|medicine|health|treatment|access|disease)": "healthcare",
         r"(женщина|права|дискриминация|Северный Кавказ|социальный|равенство|woman|rights|discrimination|social|equality)": "social",
-        r"(образование|школа|университет|обучение|education|school|university|learning)": "education",
-        r"(климат|экология|углерод|парниковый|climate|ecology|carbon|greenhouse)": "climate"
+        r"(климат|экология|углерод|парниковый|climate|ecology|carbon|greenhouse)": "climate",
+        r"(образование|школа|университет|обучение|education|school|university|learning)": "education"
     }
     domains = []
     for pattern, domain in mapping.items():
         if re.search(pattern, prompt, re.IGNORECASE):
             domains.append(domain)
-    return domains if domains else ["general"]
+    return domains if domains else ALL_DOMAINS
 
-def generate_explanation(agent: Dict, lang: str = "ru") -> str:
-    explanations = {
-        "ru": {
-            "physics": "Этот материал демонстрирует высокую резонансную чувствительность (q/m) в условиях высокого давления, что усиливает электрон-фононное взаимодействие и повышает T_c.",
-            "healthcare": "Решение оптимизирует баланс между доступом и безопасностью, что критично при распределении ограниченных медицинских ресурсов.",
-            "social": "Политика учитывает пространственно-временные асимметрии в доступе к правам, выявленные через резонансный анализ социальных полей.",
-            "climate": "Модель выявила точку нелинейного отклика климатической системы на снижение выбросов в заданном регионе.",
-            "education": "Решение основано на резонансной синхронизации когнитивных и социальных доменов обучения.",
-            "general": "Решение основано на междоменном резонансе, усиливающем слабые сигналы из смежных областей знания."
-        },
-        "en": {
-            "physics": "This material exhibits high resonance sensitivity (q/m) under high pressure, enhancing electron-phonon coupling and raising T_c.",
-            "healthcare": "The solution optimizes the trade-off between access and safety, critical for allocating scarce medical resources.",
-            "social": "The policy accounts for spatio-temporal asymmetries in rights access, revealed through resonance analysis of social fields.",
-            "climate": "The model identified a nonlinear climate response tipping point to emission reductions in the specified region.",
-            "education": "The solution leverages resonance synchronization between cognitive and social learning domains.",
-            "general": "The solution leverages cross-domain resonance to amplify weak signals from adjacent knowledge domains."
-        }
-    }
-    domain = agent.get("domain", "general")
-    return explanations[lang].get(domain, explanations[lang]["general"])
+def generate_modified_constants() -> Dict[str, float]:
+    """Превращает константы в переменные (раздел 3.2)"""
+    mods = {}
+    mods["c"] = np.random.uniform(0.95, 1.05) * BASE_CONSTANTS["c"]
+    mods["hbar"] = np.random.uniform(0.9, 1.1) * BASE_CONSTANTS["hbar"]
+    mods["G"] = np.random.uniform(0.8, 1.2) * BASE_CONSTANTS["G"]
+    mods["D_fractal"] = np.random.uniform(2.0, 3.0)  # ключевая переменная!
+    return mods
 
-def generate_agents(prompt: str, domains: List[str], n: int = 12) -> List[Dict]:
+def generate_theorem(domains: List[str], constants: Dict, lang: str = "ru") -> str:
+    D = constants["D_fractal"]
+    if "physics" in domains and "social" in domains:
+        return (
+            f"ТЕОРЕМА: Существует универсальный резонансный оператор ℛ, связывающий "
+            f"критическую температуру сверхпроводника и социальную справедливость "
+            f"через общую фрактальную размерность пространства-времени D = {D:.2f}. "
+            f"Формально: T_c ∝ (1/D) · S_social, где S_social — индекс доступа к правам."
+        )
+    elif "physics" in domains:
+        return (
+            f"ГИПОТЕЗА: При D = {D:.2f} и c = {constants['c']:.2e} м/с "
+            f"существует метастабильная фаза с T_c > 293 K при давлении < 10 ГПа."
+        )
+    elif "social" in domains and "healthcare" in domains:
+        return (
+            f"ГИПОТЕЗА: Индекс социальной справедливости и доступ к медицине "
+            f"подчиняются одному резонансному закону: ω_рез = (1/D) Σ (q_k/m_k), "
+            f"где D = {D:.2f} — фрактальная размерность социального поля."
+        )
+    return "Новое знание требует междоменного резонанса."
+
+def run_thought_experiment(theorem: str, domains: List[str], lang: str = "ru") -> str:
+    if "T_c > 293" in theorem and "D = " in theorem:
+        D_val = float(theorem.split("D = ")[1].split(",")[0])
+        if D_val < 2.2:
+            return (
+                "МЫСЛЕННЫЙ ЭКСПЕРИМЕНТ: Если D < 2.2, то пространство-время "
+                "становится эффективно двумерным. В таких условиях "
+                "электрон-фононное взаимодействие усиливается на порядок, "
+                "что делает комнатную сверхпроводимость возможной даже при 1 атм. "
+                "Это объясняет аномалии в графеновых гетероструктурах (2023–2025)."
+            )
+    elif "социальную справедливость" in theorem:
+        return (
+            "МЫСЛЕННЫЙ ЭКСПЕРИМЕНТ: Если социальные и физические системы "
+            "подчиняются одному резонансному оператору, то вмешательство в "
+            "одну систему (например, изменение давления в материале) может "
+            "вызывать резонанс в другой (например, рост социальной справедливости)."
+        )
+    return "Гипотеза требует экспериментальной проверки."
+
+def generate_agents(prompt: str, relevant_domains: List[str], n: int = 12) -> List[Dict]:
     agents = []
-
-    HYDRIDE_CANDIDATES = [
-        {"base": "LaH10", "Tc_at_180GPa": 250, "type": "lanthanide hydride"},
-        {"base": "YH9", "Tc_at_200GPa": 243, "type": "yttrium hydride"},
-        {"base": "CaH6", "Tc_at_150GPa": 215, "type": "alkaline earth hydride"},
-        {"base": "ThH10", "Tc_at_80GPa": 161, "type": "actinide hydride"},
-        {"base": "SH3", "Tc_at_155GPa": 203, "type": "sulfur hydride"},
-        {"base": "C-S-H", "Tc_at_267GPa": 288, "type": "carbon-sulfur-hydrogen"},
-        {"base": "BaH12", "Tc_at_130GPa": 200, "type": "barium hydride"},
-    ]
+    all_combinations = []
+    for r in range(1, min(4, len(relevant_domains)+1)):
+        all_combinations.extend(combinations(relevant_domains, r))
+    if not all_combinations:
+        all_combinations = [("general",)]
 
     for i in range(n):
-        if "physics" in domains:
-            candidate = np.random.choice(HYDRIDE_CANDIDATES)
-            base = candidate["base"]
-            mat_type = candidate["type"]
-            ref_pressure = float([k for k in candidate.keys() if k.startswith("Tc_at_")][0].split("_")[-1][:-3])
-            Tc_ref = candidate[f"Tc_at_{int(ref_pressure)}GPa"]
-            pressure = np.random.uniform(50, 200)
-            if pressure < ref_pressure:
-                Tc = Tc_ref * (pressure / ref_pressure)
-            else:
-                Tc = Tc_ref + np.random.uniform(0, 50)
-            Tc = min(Tc, 350.0)
-            toxic = base in ["ThH10", "SH3"]
-            rare = base in ["LaH10", "YH9", "ThH10"]
-            stable_at_ambient = False
-            q = np.random.uniform(0.6, 1.0, 3).tolist()
-            m = np.random.uniform(0.7, 1.4, 3).tolist()
-            agents.append({
-                "id": i,
-                "name": f"Material-{i+1}",
-                "formula": base,
-                "material_type": mat_type,
-                "domain": "physics",
-                "type": "material",
-                "Tc": Tc,
-                "pressure_GPa": pressure,
-                "toxic": toxic,
-                "rare_elements": rare,
-                "stable_at_ambient": stable_at_ambient,
-                "q": q,
-                "m": m
-            })
-        elif "social" in domains or "healthcare" in domains:
+        agent_domains = list(np.random.choice(all_combinations))
+        constants = generate_modified_constants()
+        q, m = [], []
+
+        # Physics
+        if "physics" in agent_domains:
+            pressure = np.random.uniform(1, 200)  # включая низкие давления!
+            # T_c зависит от D и c
+            base_Tc = 100 + 150 * (2.5 / constants["D_fractal"]) * (constants["c"] / BASE_CONSTANTS["c"])
+            Tc = min(base_Tc + np.random.uniform(-20, 20), 350.0)
+            q.extend([Tc / 300.0, pressure / 100.0])
+            m.extend([1.0, 0.8])
+
+        # Healthcare
+        if "healthcare" in agent_domains:
             access = np.random.uniform(0.1, 0.95)
             safety = np.random.uniform(0.1, 0.95)
-            q = [access, safety]
-            m = [0.85, 0.9]
-            domain = "social" if "social" in domains else "healthcare"
-            agents.append({
-                "id": i,
-                "name": f"Policy-{i+1}",
-                "domain": domain,
-                "type": "policy",
-                "access_score": access,
-                "safety_score": safety,
-                "q": q,
-                "m": m
-            })
-        elif "climate" in domains:
+            q.append((access + safety) / 2)
+            m.append(0.85)
+
+        # Social
+        if "social" in agent_domains:
+            access = np.random.uniform(0.2, 0.9)
+            safety = np.random.uniform(0.3, 0.85)
+            q.append((access + safety) / 2)
+            m.append(0.9)
+
+        # Climate
+        if "climate" in agent_domains:
             mitigation = np.random.uniform(0.2, 0.9)
             adaptation = np.random.uniform(0.3, 0.85)
-            q = [mitigation, adaptation]
-            m = [0.9, 0.85]
-            agents.append({
-                "id": i,
-                "name": f"Climate-{i+1}",
-                "domain": "climate",
-                "type": "climate_strategy",
-                "mitigation_score": mitigation,
-                "adaptation_score": adaptation,
-                "q": q,
-                "m": m
-            })
-        elif "education" in domains:
+            q.append((mitigation + adaptation) / 2)
+            m.append(0.88)
+
+        # Education
+        if "education" in agent_domains:
             engagement = np.random.uniform(0.4, 0.9)
             equity = np.random.uniform(0.3, 0.88)
-            q = [engagement, equity]
-            m = [0.8, 0.9]
-            agents.append({
-                "id": i,
-                "name": f"Edu-{i+1}",
-                "domain": "education",
-                "type": "education_policy",
-                "engagement_score": engagement,
-                "equity_score": equity,
-                "q": q,
-                "m": m
-            })
-        else:
+            q.append((engagement + equity) / 2)
+            m.append(0.82)
+
+        if not q:
             q = [0.7, 0.65]
             m = [1.0, 1.1]
-            agents.append({
-                "id": i,
-                "name": f"Generic-{i+1}",
-                "domain": "general",
-                "type": "generic",
-                "q": q,
-                "m": m
-            })
+
+        agents.append({
+            "id": i,
+            "name": f"Breakthrough-{i+1}",
+            "domains": agent_domains,
+            "constants": constants,
+            "q": q,
+            "m": m
+        })
     return agents
 
 def compute_omega_res(q: List[float], m: List[float], D: float = 2.5) -> float:
@@ -219,8 +191,8 @@ def compute_omega_res(q: List[float], m: List[float], D: float = 2.5) -> float:
     return float((1.0 / D) * np.sum(q_arr / m_arr))
 
 def run_gra_simulation(prompt: str) -> Dict[str, Any]:
-    domains = extract_domains(prompt)
-    agents = generate_agents(prompt, domains)
+    relevant_domains = extract_domains(prompt)
+    agents = generate_agents(prompt, relevant_domains)
     D_fractal = 2.5
 
     omegas = [compute_omega_res(a["q"], a["m"], D=D_fractal) for a in agents]
@@ -229,19 +201,7 @@ def run_gra_simulation(prompt: str) -> Dict[str, Any]:
     exp_omegas = np.exp(omegas - np.max(omegas))
     alpha = exp_omegas / (exp_omegas.sum() + 1e-8)
 
-    P_i = []
-    for agent in agents:
-        if agent["type"] == "material":
-            P = min(1.0, agent["Tc"] / 293.0)
-        elif agent["type"] == "policy":
-            P = (agent["access_score"] + agent["safety_score"]) / 2
-        elif agent["type"] == "climate_strategy":
-            P = (agent["mitigation_score"] + agent["adaptation_score"]) / 2
-        elif agent["type"] == "education_policy":
-            P = (agent["engagement_score"] + agent["equity_score"]) / 2
-        else:
-            P = 0.5
-        P_i.append(P)
+    P_i = [min(1.0, max(0.0, o)) for o in omegas]  # упрощённая P_i = ω_рез
 
     P_total = float(1.0 - np.prod([1.0 - p for p in P_i]))
     N_res = float(np.std(omegas) / (np.mean(np.abs(omegas)) + 1e-8))
@@ -259,7 +219,6 @@ def run_gra_simulation(prompt: str) -> Dict[str, Any]:
     return {
         "status": "success",
         "prompt": prompt,
-        "domains": domains,
         "foam": foam,
         "P_total": P_total,
         "N_res": N_res,
@@ -280,57 +239,30 @@ async def run_gra_endpoint(request: PromptRequest):
         top = max(result["foam"], key=lambda x: x["amplitude"] * x["P_i"])
         agent = top["agent"]
 
-        explanation = generate_explanation(agent, lang)
+        theorem = generate_theorem(agent["domains"], agent["constants"], lang)
+        experiment = run_thought_experiment(theorem, agent["domains"], lang)
         novelty_level = NOVELTY_LEVELS[lang][min(3, int(result["N_res"] * 4))]
 
-        if agent["type"] == "material":
-            celsius = agent["Tc"] - 273.15
-            safe = msg["yes"] if not (agent["toxic"] or agent["rare_elements"]) else msg["no"]
-            stable = msg["yes"] if agent["stable_at_ambient"] else msg["no"]
-            solution = (
-                f"{msg['material_label']}: {agent['name']} ({agent['formula']})\n"
-                f"• {msg['type_label']}: {agent['material_type']}\n"
-                f"• {msg['Tc_label']}: {agent['Tc']:.1f} K ({celsius:.1f}{msg['celsius']})\n"
-                f"• {msg['pressure_label']}: {agent['pressure_GPa']:.1f} {msg['gpa']}\n"
-                f"• {msg['safe_label']}: {safe}\n"
-                f"• {msg['stable_label']}: {stable}"
-            )
-        elif agent["type"] == "policy":
-            label = msg["social_label"] if agent["domain"] == "social" else msg["healthcare_label"]
-            solution = (
-                f"{label}: {agent['name']}\n"
-                f"• {msg['access_label']}: {agent['access_score']:.2f}\n"
-                f"• {msg['safety_label']}: {agent['safety_score']:.2f}"
-            )
-        elif agent["type"] == "climate_strategy":
-            solution = (
-                f"Climate Strategy: {agent['name']}\n"
-                f"• Mitigation: {agent['mitigation_score']:.2f}\n"
-                f"• Adaptation: {agent['adaptation_score']:.2f}"
-            )
-        elif agent["type"] == "education_policy":
-            solution = (
-                f"Education Policy: {agent['name']}\n"
-                f"• Engagement: {agent['engagement_score']:.2f}\n"
-                f"• Equity: {agent['equity_score']:.2f}"
-            )
-        else:
-            solution = f"{msg['generic_label']}: {agent['name']}"
+        # Формируем прорыв
+        parts = [f"**{msg['breakthrough']}: {agent['name']}**"]
+        parts.append(f"• **{msg['domains']}**: {', '.join(agent['domains'])}")
+        parts.append(f"• **{msg['constants']}**: D = {agent['constants']['D_fractal']:.2f}, c = {agent['constants']['c']:.2e} м/с")
+        parts.append(f"\n**{msg['theorem']}**:\n{theorem}")
+        parts.append(f"\n**{msg['experiment']}**:\n{experiment}")
+
+        breakthrough = "\n".join(parts)
 
         return {
             "status": "success",
             "prompt": request.prompt,
             "lang": lang,
-            "solution": solution,
-            "explanation": explanation,
+            "breakthrough": breakthrough,
             "novelty_score": round(result["N_res"], 3),
             "novelty_level": novelty_level,
             "P_total": round(result["P_total"], 3),
-            "top_amplitude": round(top["amplitude"], 3),
             "omega_res": round(top["omega_res"], 3),
             "D_fractal": result["D_fractal"],
-            "domains": result["domains"],
-            "methodology": "ГРА v1.0: снижение сложности O(2^n) → O(n²) через резонансные точки (см. гра-БОЛЬШОЙ без этики.txt)"
+            "methodology": "ГРА v1.0: превращение констант в переменные + 'пена разума' как суперпозиция доменов (см. гра-БОЛЬШОЙ без этики.txt)"
         }
 
     except Exception as e:
