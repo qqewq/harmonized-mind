@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { InputForm } from "@/components/InputForm";
-import { Brain, GitBranch, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { Brain, GitBranch, CheckCircle2, XCircle, Loader2, Globe } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/hooks/useLanguage";
+import { translations } from "@/lib/translations";
 
 interface GRAResponse {
   status: "success" | "blocked";
@@ -18,6 +21,8 @@ interface GRAResponse {
 const Index = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState<GRAResponse | null>(null);
+  const { language, toggleLanguage } = useLanguage();
+  const t = translations[language];
 
   const performAnalysis = async (prompt: string) => {
     setIsAnalyzing(true);
@@ -29,7 +34,7 @@ const Index = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt, lang: language }),
       });
 
       if (!response.ok) {
@@ -40,16 +45,16 @@ const Index = () => {
       setResults(data);
 
       if (data.status === "success") {
-        toast.success("Анализ ГРА завершен успешно");
+        toast.success(language === 'ru' ? "Анализ ГРА завершен успешно" : "HRA analysis completed successfully");
       } else {
-        toast.warning("Решение заблокировано этической системой");
+        toast.warning(language === 'ru' ? "Решение заблокировано этической системой" : "Solution blocked by ethical system");
       }
     } catch (error) {
       console.error('Error in GRA analysis:', error);
-      toast.error("Ошибка при выполнении анализа ГРА");
+      toast.error(language === 'ru' ? "Ошибка при выполнении анализа ГРА" : "Error performing HRA analysis");
       setResults({
         status: "blocked",
-        message: "Не удалось подключиться к серверу ГРА"
+        message: language === 'ru' ? "Не удалось подключиться к серверу ГРА" : "Failed to connect to HRA server"
       });
     } finally {
       setIsAnalyzing(false);
@@ -68,13 +73,24 @@ const Index = () => {
                 <div className="absolute inset-0 blur-xl bg-primary/30 animate-pulse-glow" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-foreground">Harmonized Mind</h1>
-                <p className="text-sm text-muted-foreground">Человекоцентричный ГРА</p>
+                <h1 className="text-2xl font-bold text-foreground">{t.title}</h1>
+                <p className="text-sm text-muted-foreground">{t.subtitle}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <GitBranch className="w-4 h-4" />
-              <span className="font-mono">v1.0</span>
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleLanguage}
+                className="flex items-center gap-2 text-lg hover:bg-accent"
+                title={language === 'ru' ? 'Switch to English' : 'Переключить на русский'}
+              >
+                {language === 'ru' ? '🇷🇺' : '🇬🇧'}
+              </Button>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <GitBranch className="w-4 h-4" />
+                <span className="font-mono">{t.version}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -85,17 +101,15 @@ const Index = () => {
         <div className="max-w-4xl mx-auto space-y-8">
           {/* Info Card */}
           <div className="bg-gradient-primary p-6 rounded-xl text-primary-foreground shadow-glow-primary">
-            <h2 className="text-xl font-bold mb-2">Гибридный Резонансный Алгоритм</h2>
+            <h2 className="text-xl font-bold mb-2">{t.heroTitle}</h2>
             <p className="text-sm leading-relaxed opacity-90">
-              Система использует резонансный поиск, междоменную «пену разума», избирательную 
-              этику (Γᵢ &gt; 0) и выход из этической коробки только при 
-              P<sub>total</sub> ≥ 0.8 и Γ<sub>пена</sub> &gt; 0.
+              {t.heroDescription}
             </p>
           </div>
 
           {/* Input Form */}
           <div className="bg-card border border-border rounded-xl p-6 shadow-xl">
-            <InputForm onAnalyze={performAnalysis} isLoading={isAnalyzing} />
+            <InputForm onAnalyze={performAnalysis} isLoading={isAnalyzing} language={language} />
           </div>
 
           {/* Loading State */}
@@ -104,10 +118,10 @@ const Index = () => {
               <div className="flex flex-col items-center justify-center space-y-4">
                 <Loader2 className="w-12 h-12 text-primary animate-spin" />
                 <p className="text-lg text-muted-foreground">
-                  Выполняется резонансный анализ...
+                  {t.analyzing}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Генерация гипотез и этическая фильтрация
+                  {t.analyzingSubtext}
                 </p>
               </div>
             </Card>
@@ -125,18 +139,18 @@ const Index = () => {
                     <div className="flex-1 space-y-4">
                       <div>
                         <h3 className="text-xl font-bold text-foreground mb-2 flex items-center gap-2">
-                          Решение найдено
+                          {t.successTitle}
                           <Badge variant="outline" className="border-success text-success">
-                            Этическая коробка открыта
+                            {t.successBadge}
                           </Badge>
                         </h3>
                         <p className="text-sm text-muted-foreground mb-4">
-                          Запрос: {results.prompt}
+                          {t.requestLabel} {results.prompt}
                         </p>
                       </div>
                       
                       <div className="bg-background/50 rounded-lg p-4 border border-border">
-                        <h4 className="font-semibold text-foreground mb-2">Решение:</h4>
+                        <h4 className="font-semibold text-foreground mb-2">{t.solutionLabel}</h4>
                         <div className="text-foreground whitespace-pre-line">
                           {results.solution}
                         </div>
@@ -145,19 +159,19 @@ const Index = () => {
                       {/* Metrics */}
                       <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border">
                         <div>
-                          <div className="text-sm text-muted-foreground mb-1">Γ<sub>пена</sub></div>
+                          <div className="text-sm text-muted-foreground mb-1">{t.metricGammaFoam}</div>
                           <div className="text-lg font-mono font-semibold text-success">
                             {results.Gamma_foam?.toFixed(2)}
                           </div>
                         </div>
                         <div>
-                          <div className="text-sm text-muted-foreground mb-1">P<sub>total</sub></div>
+                          <div className="text-sm text-muted-foreground mb-1">{t.metricPTotal}</div>
                           <div className="text-lg font-mono font-semibold text-primary">
                             {results.P_total?.toFixed(3)}
                           </div>
                         </div>
                         <div>
-                          <div className="text-sm text-muted-foreground mb-1">Амплитуда</div>
+                          <div className="text-sm text-muted-foreground mb-1">{t.metricAmplitude}</div>
                           <div className="text-lg font-mono font-semibold text-secondary">
                             {results.top_amplitude?.toFixed(3)}
                           </div>
@@ -174,13 +188,13 @@ const Index = () => {
                     </div>
                     <div className="flex-1">
                       <h3 className="text-xl font-bold text-foreground mb-2 flex items-center gap-2">
-                        Решение заблокировано
+                        {t.blockedTitle}
                         <Badge variant="outline" className="border-destructive text-destructive">
-                          Этическая коробка закрыта
+                          {t.blockedBadge}
                         </Badge>
                       </h3>
                       <p className="text-foreground/90">
-                        {results.message || "Решение не прошло этическую коробку безопасности"}
+                        {results.message || t.blockedDefault}
                       </p>
                       
                       {/* Metrics if available */}
@@ -188,7 +202,7 @@ const Index = () => {
                         <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-border">
                           {results.Gamma_foam !== undefined && (
                             <div>
-                              <div className="text-sm text-muted-foreground mb-1">Γ<sub>пена</sub></div>
+                              <div className="text-sm text-muted-foreground mb-1">{t.metricGammaFoam}</div>
                               <div className="text-lg font-mono font-semibold text-destructive">
                                 {results.Gamma_foam.toFixed(2)}
                               </div>
@@ -196,7 +210,7 @@ const Index = () => {
                           )}
                           {results.P_total !== undefined && (
                             <div>
-                              <div className="text-sm text-muted-foreground mb-1">P<sub>total</sub></div>
+                              <div className="text-sm text-muted-foreground mb-1">{t.metricPTotal}</div>
                               <div className="text-lg font-mono font-semibold text-destructive">
                                 {results.P_total.toFixed(3)}
                               </div>
@@ -207,10 +221,10 @@ const Index = () => {
                       
                       <div className="mt-4 p-4 bg-background/50 rounded-lg border border-destructive/30">
                         <p className="text-sm text-muted-foreground">
-                          <strong>Причины блокировки:</strong><br/>
-                          • Γ<sub>пена</sub> ≤ 0 (этическая несогласованность)<br/>
-                          • P<sub>total</sub> &lt; 0.8 (недостаточная вероятность успеха)<br/>
-                          • Отсутствие этически приемлемых решений
+                          <strong>{t.blockedReasons}</strong><br/>
+                          • {t.blockedReason1}<br/>
+                          • {t.blockedReason2}<br/>
+                          • {t.blockedReason3}
                         </p>
                       </div>
                     </div>
@@ -225,8 +239,8 @@ const Index = () => {
       {/* Footer */}
       <footer className="border-t border-border mt-16 py-6">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>Harmonized Mind — Человекоцентричный ГРА</p>
-          <p className="mt-1">Резонансный поиск • Этическая фильтрация • Междоменная интеграция</p>
+          <p>{t.footerTitle}</p>
+          <p className="mt-1">{t.footerSubtitle}</p>
         </div>
       </footer>
     </div>

@@ -5,21 +5,25 @@ import { Label } from "@/components/ui/label";
 import { Brain, Sparkles } from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
+import { translations } from "@/lib/translations";
+import type { Language } from "@/hooks/useLanguage";
 
 interface InputFormProps {
   onAnalyze: (prompt: string) => void;
   isLoading: boolean;
+  language: Language;
 }
 
 // Zod validation schema for input validation
 const promptSchema = z.string()
-  .min(1, { message: "Запрос обязателен" })
+  .min(1, { message: "Запрос обязателен / Prompt required" })
   .transform(val => val.trim())
   .pipe(z.string()
-    .min(10, { message: "Запрос должен содержать минимум 10 символов" })
-    .max(2000, { message: "Запрос должен содержать максимум 2000 символов" }));
+    .min(10, { message: "Минимум 10 символов / Minimum 10 characters" })
+    .max(2000, { message: "Максимум 2000 символов / Maximum 2000 characters" }));
 
-export const InputForm = ({ onAnalyze, isLoading }: InputFormProps) => {
+export const InputForm = ({ onAnalyze, isLoading, language }: InputFormProps) => {
+  const t = translations[language];
   const [prompt, setPrompt] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -42,18 +46,20 @@ export const InputForm = ({ onAnalyze, isLoading }: InputFormProps) => {
       <div className="space-y-2">
         <Label htmlFor="prompt" className="text-foreground flex items-center gap-2">
           <Brain className="w-4 h-4 text-primary" />
-          Ваш запрос
+          {t.inputLabel}
         </Label>
         <Textarea
           id="prompt"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder='Например: "найди сверхпроводник при 20°C" или "как обеспечить безопасный доступ к аборции на Северном Кавказе?"'
+          placeholder={t.inputPlaceholder}
           className="min-h-[160px] bg-input border-border focus:border-primary transition-colors text-base"
           required
         />
         <p className="text-sm text-muted-foreground">
-          Опишите задачу для гибридного резонансного алгоритма
+          {language === 'ru' 
+            ? 'Опишите задачу для гибридного резонансного алгоритма' 
+            : 'Describe the task for the hybrid resonance algorithm'}
         </p>
       </div>
 
@@ -65,12 +71,12 @@ export const InputForm = ({ onAnalyze, isLoading }: InputFormProps) => {
         {isLoading ? (
           <>
             <Sparkles className="w-5 h-5 mr-2 animate-spin" />
-            Анализ в процессе...
+            {language === 'ru' ? 'Анализ в процессе...' : 'Analysis in progress...'}
           </>
         ) : (
           <>
             <Brain className="w-5 h-5 mr-2" />
-            Запустить ГРА
+            {t.submitButton}
           </>
         )}
       </Button>
