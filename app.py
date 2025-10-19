@@ -47,12 +47,11 @@ NOVELTY_LEVELS = {
 
 ALL_DOMAINS = ["physics", "healthcare", "social", "climate", "education"]
 
-# Фундаментальные константы как переменные (раздел 3.2)
 BASE_CONSTANTS = {
-    "c": 299792458.0,      # скорость света
-    "hbar": 1.0545718e-34, # приведённая постоянная Планка
-    "G": 6.67430e-11,      # гравитационная постоянная
-    "D_fractal": 2.5       # фрактальная размерность — НЕ константа!
+    "c": 299792458.0,
+    "hbar": 1.0545718e-34,
+    "G": 6.67430e-11,
+    "D_fractal": 2.5
 }
 
 def extract_domains(prompt: str) -> List[str]:
@@ -70,12 +69,11 @@ def extract_domains(prompt: str) -> List[str]:
     return domains if domains else ALL_DOMAINS
 
 def generate_modified_constants() -> Dict[str, float]:
-    """Превращает константы в переменные (раздел 3.2)"""
     mods = {}
     mods["c"] = np.random.uniform(0.95, 1.05) * BASE_CONSTANTS["c"]
     mods["hbar"] = np.random.uniform(0.9, 1.1) * BASE_CONSTANTS["hbar"]
     mods["G"] = np.random.uniform(0.8, 1.2) * BASE_CONSTANTS["G"]
-    mods["D_fractal"] = np.random.uniform(2.0, 3.0)  # ключевая переменная!
+    mods["D_fractal"] = np.random.uniform(2.0, 3.0)
     return mods
 
 def generate_theorem(domains: List[str], constants: Dict, lang: str = "ru") -> str:
@@ -85,7 +83,7 @@ def generate_theorem(domains: List[str], constants: Dict, lang: str = "ru") -> s
             f"ТЕОРЕМА: Существует универсальный резонансный оператор ℛ, связывающий "
             f"критическую температуру сверхпроводника и социальную справедливость "
             f"через общую фрактальную размерность пространства-времени D = {D:.2f}. "
-            f"Формально: T_c ∝ (1/D) · S_social, где S_social — индекс доступа к правам."
+            f"Формально: T_c ∝ (1/D) · S_social."
         )
     elif "physics" in domains:
         return (
@@ -95,28 +93,28 @@ def generate_theorem(domains: List[str], constants: Dict, lang: str = "ru") -> s
     elif "social" in domains and "healthcare" in domains:
         return (
             f"ГИПОТЕЗА: Индекс социальной справедливости и доступ к медицине "
-            f"подчиняются одному резонансному закону: ω_рез = (1/D) Σ (q_k/m_k), "
-            f"где D = {D:.2f} — фрактальная размерность социального поля."
+            f"подчиняются одному резонансному закону: ω_рез = (1/D) Σ (q_k/m_k)."
         )
     return "Новое знание требует междоменного резонанса."
 
 def run_thought_experiment(theorem: str, domains: List[str], lang: str = "ru") -> str:
     if "T_c > 293" in theorem and "D = " in theorem:
-        D_val = float(theorem.split("D = ")[1].split(",")[0])
-        if D_val < 2.2:
-            return (
-                "МЫСЛЕННЫЙ ЭКСПЕРИМЕНТ: Если D < 2.2, то пространство-время "
-                "становится эффективно двумерным. В таких условиях "
-                "электрон-фононное взаимодействие усиливается на порядок, "
-                "что делает комнатную сверхпроводимость возможной даже при 1 атм. "
-                "Это объясняет аномалии в графеновых гетероструктурах (2023–2025)."
-            )
+        try:
+            D_val = float(theorem.split("D = ")[1].split(",")[0])
+            if D_val < 2.2:
+                return (
+                    "МЫСЛЕННЫЙ ЭКСПЕРИМЕНТ: Если D < 2.2, пространство-время "
+                    "становится эффективно двумерным. Это усиливает "
+                    "электрон-фононное взаимодействие, делая комнатную "
+                    "сверхпроводимость возможной даже при 1 атм."
+                )
+        except:
+            pass
     elif "социальную справедливость" in theorem:
         return (
             "МЫСЛЕННЫЙ ЭКСПЕРИМЕНТ: Если социальные и физические системы "
-            "подчиняются одному резонансному оператору, то вмешательство в "
-            "одну систему (например, изменение давления в материале) может "
-            "вызывать резонанс в другой (например, рост социальной справедливости)."
+            "подчиняются одному резонансному оператору, вмешательство в одну "
+            "может вызывать резонанс в другой."
         )
     return "Гипотеза требует экспериментальной проверки."
 
@@ -132,43 +130,48 @@ def generate_agents(prompt: str, relevant_domains: List[str], n: int = 12) -> Li
         agent_domains = list(np.random.choice(all_combinations))
         constants = generate_modified_constants()
         q, m = [], []
+        params = {}
 
-        # Physics
         if "physics" in agent_domains:
-            pressure = np.random.uniform(1, 200)  # включая низкие давления!
-            # T_c зависит от D и c
+            pressure = np.random.uniform(1, 200)
             base_Tc = 100 + 150 * (2.5 / constants["D_fractal"]) * (constants["c"] / BASE_CONSTANTS["c"])
             Tc = min(base_Tc + np.random.uniform(-20, 20), 350.0)
             q.extend([Tc / 300.0, pressure / 100.0])
             m.extend([1.0, 0.8])
+            params["Tc"] = Tc
+            params["pressure_GPa"] = pressure
 
-        # Healthcare
         if "healthcare" in agent_domains:
             access = np.random.uniform(0.1, 0.95)
             safety = np.random.uniform(0.1, 0.95)
             q.append((access + safety) / 2)
             m.append(0.85)
+            params["access"] = access
+            params["safety"] = safety
 
-        # Social
         if "social" in agent_domains:
             access = np.random.uniform(0.2, 0.9)
             safety = np.random.uniform(0.3, 0.85)
             q.append((access + safety) / 2)
             m.append(0.9)
+            params["access"] = access
+            params["safety"] = safety
 
-        # Climate
         if "climate" in agent_domains:
             mitigation = np.random.uniform(0.2, 0.9)
             adaptation = np.random.uniform(0.3, 0.85)
             q.append((mitigation + adaptation) / 2)
             m.append(0.88)
+            params["mitigation"] = mitigation
+            params["adaptation"] = adaptation
 
-        # Education
         if "education" in agent_domains:
             engagement = np.random.uniform(0.4, 0.9)
             equity = np.random.uniform(0.3, 0.88)
             q.append((engagement + equity) / 2)
             m.append(0.82)
+            params["engagement"] = engagement
+            params["equity"] = equity
 
         if not q:
             q = [0.7, 0.65]
@@ -179,6 +182,7 @@ def generate_agents(prompt: str, relevant_domains: List[str], n: int = 12) -> Li
             "name": f"Breakthrough-{i+1}",
             "domains": agent_domains,
             "constants": constants,
+            "params": params,
             "q": q,
             "m": m
         })
@@ -201,7 +205,21 @@ def run_gra_simulation(prompt: str) -> Dict[str, Any]:
     exp_omegas = np.exp(omegas - np.max(omegas))
     alpha = exp_omegas / (exp_omegas.sum() + 1e-8)
 
-    P_i = [min(1.0, max(0.0, o)) for o in omegas]  # упрощённая P_i = ω_рез
+    P_i = []
+    for agent in agents:
+        P = 1.0
+        if "physics" in agent["domains"]:
+            Tc = agent["params"]["Tc"]
+            P *= min(1.0, Tc / 293.0)
+        if "healthcare" in agent["domains"]:
+            P *= (agent["params"]["access"] + agent["params"]["safety"]) / 2
+        if "social" in agent["domains"]:
+            P *= (agent["params"]["access"] + agent["params"]["safety"]) / 2
+        if "climate" in agent["domains"]:
+            P *= (agent["params"]["mitigation"] + agent["params"]["adaptation"]) / 2
+        if "education" in agent["domains"]:
+            P *= (agent["params"]["engagement"] + agent["params"]["equity"]) / 2
+        P_i.append(P)
 
     P_total = float(1.0 - np.prod([1.0 - p for p in P_i]))
     N_res = float(np.std(omegas) / (np.mean(np.abs(omegas)) + 1e-8))
@@ -243,7 +261,6 @@ async def run_gra_endpoint(request: PromptRequest):
         experiment = run_thought_experiment(theorem, agent["domains"], lang)
         novelty_level = NOVELTY_LEVELS[lang][min(3, int(result["N_res"] * 4))]
 
-        # Формируем прорыв
         parts = [f"**{msg['breakthrough']}: {agent['name']}**"]
         parts.append(f"• **{msg['domains']}**: {', '.join(agent['domains'])}")
         parts.append(f"• **{msg['constants']}**: D = {agent['constants']['D_fractal']:.2f}, c = {agent['constants']['c']:.2e} м/с")
