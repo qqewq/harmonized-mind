@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { InputForm } from "@/components/InputForm";
-import { Brain, GitBranch, CheckCircle2, XCircle, Loader2, Globe } from "lucide-react";
+import { Brain, GitBranch, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,13 +9,14 @@ import { useLanguage } from "@/hooks/useLanguage";
 import { translations } from "@/lib/translations";
 
 interface GRAResponse {
-  status: "success" | "blocked";
-  message?: string;
-  solution?: string;
-  prompt?: string;
-  Gamma_foam?: number;
-  P_total?: number;
-  top_amplitude?: number;
+  status: "success";
+  prompt: string;
+  lang: string;
+  solution: string;
+  P_total: number;
+  top_amplitude: number;
+  D_fractal: number;
+  domains: string[];
 }
 
 const Index = () => {
@@ -43,19 +44,10 @@ const Index = () => {
 
       const data: GRAResponse = await response.json();
       setResults(data);
-
-      if (data.status === "success") {
-        toast.success(language === 'ru' ? "Анализ ГРА завершен успешно" : "HRA analysis completed successfully");
-      } else {
-        toast.warning(language === 'ru' ? "Решение заблокировано этической системой" : "Solution blocked by ethical system");
-      }
+      toast.success(language === 'ru' ? "Резонансный анализ завершен" : "Resonance analysis completed");
     } catch (error) {
       console.error('Error in GRA analysis:', error);
-      toast.error(language === 'ru' ? "Ошибка при выполнении анализа ГРА" : "Error performing HRA analysis");
-      setResults({
-        status: "blocked",
-        message: language === 'ru' ? "Не удалось подключиться к серверу ГРА" : "Failed to connect to HRA server"
-      });
+      toast.error(language === 'ru' ? "Ошибка подключения к серверу ГРА" : "Error connecting to HRA server");
     } finally {
       setIsAnalyzing(false);
     }
@@ -130,107 +122,75 @@ const Index = () => {
           {/* Results */}
           {results && !isAnalyzing && (
             <div className="space-y-6 animate-in fade-in-0 slide-in-from-bottom-4 duration-700">
-              {results.status === "success" ? (
-                <Card className="p-6 bg-card border-success">
-                  <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0">
-                      <CheckCircle2 className="w-8 h-8 text-success" />
-                    </div>
-                    <div className="flex-1 space-y-4">
-                      <div>
-                        <h3 className="text-xl font-bold text-foreground mb-2 flex items-center gap-2">
-                          {t.successTitle}
-                          <Badge variant="outline" className="border-success text-success">
-                            {t.successBadge}
-                          </Badge>
-                        </h3>
-                        <p className="text-sm text-muted-foreground mb-4">
-                          {t.requestLabel} {results.prompt}
-                        </p>
-                      </div>
-                      
-                      <div className="bg-background/50 rounded-lg p-4 border border-border">
-                        <h4 className="font-semibold text-foreground mb-2">{t.solutionLabel}</h4>
-                        <div className="text-foreground whitespace-pre-line">
-                          {results.solution}
-                        </div>
-                      </div>
-
-                      {/* Metrics */}
-                      <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border">
-                        <div>
-                          <div className="text-sm text-muted-foreground mb-1">{t.metricGammaFoam}</div>
-                          <div className="text-lg font-mono font-semibold text-success">
-                            {results.Gamma_foam?.toFixed(2)}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-muted-foreground mb-1">{t.metricPTotal}</div>
-                          <div className="text-lg font-mono font-semibold text-primary">
-                            {results.P_total?.toFixed(3)}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-muted-foreground mb-1">{t.metricAmplitude}</div>
-                          <div className="text-lg font-mono font-semibold text-secondary">
-                            {results.top_amplitude?.toFixed(3)}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+              <Card className="p-6 bg-card border-primary">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    <CheckCircle2 className="w-8 h-8 text-primary" />
                   </div>
-                </Card>
-              ) : (
-                <Card className="p-6 bg-card border-destructive">
-                  <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0">
-                      <XCircle className="w-8 h-8 text-destructive" />
-                    </div>
-                    <div className="flex-1">
+                  <div className="flex-1 space-y-4">
+                    <div>
                       <h3 className="text-xl font-bold text-foreground mb-2 flex items-center gap-2">
-                        {t.blockedTitle}
-                        <Badge variant="outline" className="border-destructive text-destructive">
-                          {t.blockedBadge}
+                        {t.resultTitle}
+                        <Badge variant="outline" className="border-primary text-primary">
+                          {t.resultBadge}
                         </Badge>
                       </h3>
-                      <p className="text-foreground/90">
-                        {results.message || t.blockedDefault}
+                      <p className="text-sm text-muted-foreground mb-2">
+                        {t.requestLabel} {results.prompt}
                       </p>
-                      
-                      {/* Metrics if available */}
-                      {(results.Gamma_foam !== undefined || results.P_total !== undefined) && (
-                        <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-border">
-                          {results.Gamma_foam !== undefined && (
-                            <div>
-                              <div className="text-sm text-muted-foreground mb-1">{t.metricGammaFoam}</div>
-                              <div className="text-lg font-mono font-semibold text-destructive">
-                                {results.Gamma_foam.toFixed(2)}
-                              </div>
-                            </div>
-                          )}
-                          {results.P_total !== undefined && (
-                            <div>
-                              <div className="text-sm text-muted-foreground mb-1">{t.metricPTotal}</div>
-                              <div className="text-lg font-mono font-semibold text-destructive">
-                                {results.P_total.toFixed(3)}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      
-                      <div className="mt-4 p-4 bg-background/50 rounded-lg border border-destructive/30">
+                      {results.domains && results.domains.length > 0 && (
                         <p className="text-sm text-muted-foreground">
-                          <strong>{t.blockedReasons}</strong><br/>
-                          • {t.blockedReason1}<br/>
-                          • {t.blockedReason2}<br/>
-                          • {t.blockedReason3}
+                          {t.domainsLabel} {results.domains.map(d => 
+                            <Badge key={d} variant="secondary" className="mr-1">{d}</Badge>
+                          )}
                         </p>
+                      )}
+                    </div>
+                    
+                    <div className="bg-background/50 rounded-lg p-4 border border-border">
+                      <h4 className="font-semibold text-foreground mb-2">{t.solutionLabel}</h4>
+                      <div className="text-foreground whitespace-pre-line">
+                        {results.solution}
+                      </div>
+                    </div>
+
+                    {/* Metrics */}
+                    <div className="border-t border-border pt-4">
+                      <h4 className="font-semibold text-foreground mb-3">{t.metricsTitle}</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="bg-background/50 rounded-lg p-3 border border-border">
+                          <div className="text-xs text-muted-foreground mb-1">{t.metricPTotal}</div>
+                          <div className="text-2xl font-mono font-bold text-primary">
+                            {results.P_total.toFixed(3)}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">{t.metricPTotalDesc}</div>
+                        </div>
+                        <div className="bg-background/50 rounded-lg p-3 border border-border">
+                          <div className="text-xs text-muted-foreground mb-1">{t.metricAmplitude}</div>
+                          <div className="text-2xl font-mono font-bold text-secondary">
+                            {results.top_amplitude.toFixed(3)}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">{t.metricAmplitudeDesc}</div>
+                        </div>
+                        <div className="bg-background/50 rounded-lg p-3 border border-border">
+                          <div className="text-xs text-muted-foreground mb-1">{t.metricDFractal}</div>
+                          <div className="text-2xl font-mono font-bold text-accent">
+                            {results.D_fractal.toFixed(2)}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">{t.metricDFractalDesc}</div>
+                        </div>
+                        <div className="bg-background/50 rounded-lg p-3 border border-border">
+                          <div className="text-xs text-muted-foreground mb-1">{t.metricOmegaRes}</div>
+                          <div className="text-2xl font-mono font-bold text-foreground">
+                            {(results.top_amplitude / results.D_fractal).toFixed(3)}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">{t.metricOmegaResDesc}</div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </Card>
-              )}
+                </div>
+              </Card>
             </div>
           )}
         </div>
